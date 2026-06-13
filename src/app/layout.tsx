@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter } from "next/font/google";
+import { Courier_Prime, Inter } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { InstallHint } from "@/components/install-hint";
 
-const cormorant = Cormorant_Garamond({
+const courier = Courier_Prime({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-cormorant",
+  weight: ["400", "700"],
+  variable: "--font-courier",
 });
 
 const inter = Inter({
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f8f4ec",
+  themeColor: "#efe7d5",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -43,7 +43,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${cormorant.variable} ${inter.variable} antialiased`}>
+      <body className={`${courier.variable} ${inter.variable} antialiased`}>
         {children}
         <PwaRegister />
         <InstallHint />

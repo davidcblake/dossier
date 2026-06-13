@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
+/* Dossier brand palette (see BRAND.md) */
 @theme {
-  --color-paper: #f8f4ec;
-  --color-paper-deep: #f1ead9;
-  --color-ink: #1c2740;
-  --color-ink-soft: #4a5572;
-  --color-gold: #b8892d;
-  --color-gold-soft: #e9d9b8;
+  --color-paper: #efe7d5; /* cream */
+  --color-paper-deep: #e9dfc9; /* cream-bottom */
+  --color-ink: #211b14; /* ink — glyph & primary text */
+  --color-ink-soft: #6f6655; /* muted ink */
+  --color-gold: #9b3526; /* oxblood — accent / active tint */
+  --color-gold-soft: #d6ccb6; /* keyline — hairline borders, chips */
 
-  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-display: var(--font-courier), "Courier New", monospace;
   --font-body: var(--font-inter), system-ui, sans-serif;
 }
 

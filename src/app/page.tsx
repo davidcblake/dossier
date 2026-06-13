@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 
@@ -7,11 +8,16 @@ export default async function LandingPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-12">
-      <p className="text-sm uppercase tracking-[0.25em] text-(--color-gold)">
-        Daily brief
-      </p>
-      <h1 className="mt-2 font-(family-name:--font-display) text-6xl font-semibold">
-        Dossier
+      <Image
+        src="/icons/dossier-icon.svg"
+        alt=""
+        width={72}
+        height={72}
+        className="rounded-2xl border border-(--color-gold-soft)"
+        priority
+      />
+      <h1 className="mt-5 font-(family-name:--font-display) text-6xl font-bold lowercase tracking-tight">
+        dossier
       </h1>
       <p className="mt-4 text-lg leading-relaxed text-(--color-ink-soft)">
         Know what’s waiting on you. A daily scan of your inbox, a running

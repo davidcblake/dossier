@@ -37,6 +37,8 @@ pnpm test
 - [x] **Phase 4 — Running list + thumb-first UX:** `/list` (Open sorted priority→deadline→age with “waiting N days”, collapsible Done, manual add), tap-to-complete with elegant collapse animation, per-item complete / snooze 2d (⏰) / delete (🗑️), bottom nav with Settings gear, prescriptive AI prioritization, interactive calendar candidates (date+time, Add → confirmed, remove/dismiss)
 - [x] **PWA (iPhone):** installable manifest + icons + iOS meta, update-safe service worker (network-first), offline fallback, Add-to-Home-Screen hint
 - [x] **AI-native learning + autopilot:** a learned profile built from your actions (titles/actions only — never raw or sensitive content) that personalizes prioritization and drafts; autopilot levels (suggest / auto-prepare drafts / proactive) that pre-write drafts to Gmail for approval. Never sends; calendar stays one-tap.
-- [ ] Phase 5 — Cron schedule + web push notifications
+- [x] **Phase 5 — Schedule + push:** hourly Vercel Cron (`/api/cron/scan`, `CRON_SECRET`-gated) fans out to users whose local time matches `digestHour`, scans, and sends a Web Push digest; notifications opt-in in Settings; service-worker push handlers
+- [x] **Brand:** Dossier identity applied — cream/ink/oxblood palette, Courier Prime wordmark, real app icons (see `docs/BRAND.md`)
+- [ ] Phase 6 — Onboarding wizard, needs_reconnect flow, privacy/terms, account deletion
 - [ ] Phase 6 — Polish (onboarding, voice, reconnect, privacy)
 - [ ] Phase 7 — Beta hardening

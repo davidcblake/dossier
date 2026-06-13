@@ -3,6 +3,7 @@ import { Courier_Prime, Inter } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { InstallHint } from "@/components/install-hint";
+import { Analytics } from "@vercel/analytics/next";
 
 const courier = Courier_Prime({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({
         {children}
         <PwaRegister />
         <InstallHint />
+        <Analytics />
       </body>
     </html>
   );

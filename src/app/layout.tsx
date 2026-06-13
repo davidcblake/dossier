@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Courier_Prime, Inter } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { PwaRegister } from "@/components/pwa-register";
 import { InstallHint } from "@/components/install-hint";
 
@@ -47,6 +48,7 @@ export default function RootLayout({
         {children}
         <PwaRegister />
         <InstallHint />
+        <Analytics />
       </body>
     </html>
   );

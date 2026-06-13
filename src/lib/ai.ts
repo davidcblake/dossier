@@ -119,3 +119,38 @@ export async function triageThreads(
   );
   return callJson(SONNET, system, user, triageResultSchema, 4096);
 }
+
+/**
+ * Generate a reply draft in the user's voice (Sonnet). Returns plain-text body
+ * only — Dossier saves it to Gmail Drafts; the human reviews and sends.
+ */
+export async function generateDraft(args: {
+  conversation: string;
+  voiceSample?: string | null;
+  signature?: string | null;
+}): Promise<string> {
+  const system =
+    "You write email reply drafts for the user to review and send themselves. " +
+    "Write only the reply body — no subject line, no 'Draft:' preamble, no " +
+    "commentary. Match the user's voice from the sample if provided. Be warm, " +
+    "concise, and specific to the thread. Do not invent facts or commitments. " +
+    (args.signature
+      ? `End with this signature exactly: "${args.signature}".`
+      : "Do not add a signature.");
+  const user = [
+    args.voiceSample ? `Voice sample (mimic this style):\n${args.voiceSample}\n` : "",
+    `Thread to reply to:\n${args.conversation}`,
+  ].join("\n");
+
+  const res = await anthropic().messages.create({
+    model: SONNET,
+    max_tokens: 1024,
+    system,
+    messages: [{ role: "user", content: user }],
+  });
+  return res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("")
+    .trim();
+}

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ScanButton } from "./scan-button";
+import { ItemActions } from "./item-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +74,12 @@ export default async function TodayPage() {
             </button>
           </form>
           {connected && <ScanButton />}
+          <Link
+            href="/settings"
+            className="text-sm text-(--color-ink-soft) underline underline-offset-4"
+          >
+            Settings
+          </Link>
         </div>
       </header>
 
@@ -135,6 +143,12 @@ export default async function TodayPage() {
                       Open in Gmail →
                     </a>
                   )}
+                  <ItemActions
+                    id={item.id}
+                    sensitive={item.sensitive}
+                    hasDraft={Boolean(item.draftId)}
+                    hasEvent={Boolean(item.eventId)}
+                  />
                 </li>
               );
             })}

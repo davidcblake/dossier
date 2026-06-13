@@ -46,6 +46,15 @@ export default async function LandingPage() {
       <p className="mt-4 text-center text-xs text-(--color-ink-soft)">
         Read &amp; drafts access only. You always press send yourself.
       </p>
+      <p className="mt-6 text-center text-xs text-(--color-ink-soft)">
+        <a href="/privacy" className="underline underline-offset-2">
+          Privacy
+        </a>{" "}
+        ·{" "}
+        <a href="/terms" className="underline underline-offset-2">
+          Terms
+        </a>
+      </p>
     </main>
   );
 }

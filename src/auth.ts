@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
 import { GOOGLE_SCOPES, assertScopesAllowed } from "@/lib/google-scopes";
+import { isEmailAllowed } from "@/lib/allowlist";
 
 assertScopesAllowed(GOOGLE_SCOPES);
 
@@ -38,6 +39,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           userKeys: Object.keys(user ?? {}),
           profileKeys: Object.keys(profile ?? {}),
         });
+        return false;
+      }
+      // App-level allowlist (defense-in-depth; no-op unless ALLOWED_EMAILS set).
+      if (!isEmailAllowed(email)) {
+        console.warn("[dossier][signIn] rejected: not on allowlist");
         return false;
       }
 

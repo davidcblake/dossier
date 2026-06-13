@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ListActions } from "./list-actions";
 import { AddItem } from "./add-item";
 import { BottomNav } from "@/components/bottom-nav";
+import { ReconnectBanner } from "@/components/reconnect-banner";
 import { ActionCard, type ActionCardItem } from "@/components/action-card";
 import { priorityLabel, ageLabel, deadlineLabel } from "@/lib/item-view";
 
@@ -14,6 +15,11 @@ export default async function ListPage() {
   if (!session?.user?.id) redirect("/");
 
   const now = new Date();
+
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { status: true },
+  });
 
   const open = await prisma.actionItem.findMany({
     where: {
@@ -62,6 +68,8 @@ export default async function ListPage() {
         <h1 className="font-(family-name:--font-display) text-4xl font-semibold">
           List
         </h1>
+
+        {me?.status === "needs_reconnect" && <ReconnectBanner />}
 
         <div className="mt-6">
           <AddItem />

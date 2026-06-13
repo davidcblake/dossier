@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listCalendars, type CalendarChoice } from "@/lib/calendar";
+import Link from "next/link";
 import { BottomNav } from "@/components/bottom-nav";
 import { NotificationsToggle } from "./notifications-toggle";
+import { DeleteAccount } from "./delete-account";
 
 export const dynamic = "force-dynamic";
 
@@ -221,6 +223,20 @@ export default async function SettingsPage({
               Sign out
             </button>
           </form>
+
+          <div className="mt-6">
+            <DeleteAccount />
+          </div>
+
+          <p className="mt-6 text-xs text-(--color-ink-soft)">
+            <Link href="/privacy" className="underline underline-offset-2">
+              Privacy
+            </Link>{" "}
+            ·{" "}
+            <Link href="/terms" className="underline underline-offset-2">
+              Terms
+            </Link>
+          </p>
         </div>
       </main>
       <BottomNav />

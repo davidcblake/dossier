@@ -30,10 +30,10 @@ is automated on purpose — these are operator-owned secrets and settings.
 2. Type: **Web application**, name `dossier-web`.
 3. Authorized JavaScript origins:
    - `http://localhost:3000`
-   - `https://<your-vercel-domain>`
+   - `https://mydossier.vercel.app`
 4. Authorized redirect URIs:
    - `http://localhost:3000/api/auth/callback/google`
-   - `https://<your-vercel-domain>/api/auth/callback/google`
+   - `https://mydossier.vercel.app/api/auth/callback/google`
 5. Copy the client ID/secret into `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
 
 ## 4. Environment variables
@@ -50,7 +50,7 @@ Settings → Environment Variables):
 | `ANTHROPIC_API_KEY` | console.anthropic.com (needed from Phase 2) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` (needed from Phase 5) |
 | `CRON_SECRET` | `openssl rand -hex 32` (needed from Phase 5) |
-| `APP_URL` | The deployment's public URL |
+| `APP_URL` | `https://mydossier.vercel.app` (the production domain) |
 
 ## 5. Database
 

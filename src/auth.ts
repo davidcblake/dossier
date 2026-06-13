@@ -30,37 +30,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = user.email;
       if (!email) return false;
 
-      const dbUser = await prisma.user.upsert({
-        where: { email },
-        create: { email, name: user.name ?? null },
-        update: { name: user.name ?? undefined },
-      });
-
-      if (account.refresh_token) {
-        const tokens = {
-          refreshToken: encryptToken(account.refresh_token),
-          accessToken: account.access_token
-            ? encryptToken(account.access_token)
-            : null,
-          expiresAt: account.expires_at
-            ? new Date(account.expires_at * 1000)
-            : null,
-        };
-        await prisma.googleAccount.upsert({
-          where: { userId: dbUser.id },
-          create: { userId: dbUser.id, ...tokens },
-          update: tokens,
+      try {
+        const dbUser = await prisma.user.upsert({
+          where: { email },
+          create: { email, name: user.name ?? null },
+          update: { name: user.name ?? undefined },
         });
-        // a fresh refresh token clears any pending reconnect state
-        if (dbUser.status === "needs_reconnect") {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { status: "active" },
-          });
-        }
-      }
 
-      return true;
+        if (account.refresh_token) {
+          const tokens = {
+            refreshToken: encryptToken(account.refresh_token),
+            accessToken: account.access_token
+              ? encryptToken(account.access_token)
+              : null,
+            expiresAt: account.expires_at
+              ? new Date(account.expires_at * 1000)
+              : null,
+          };
+          await prisma.googleAccount.upsert({
+            where: { userId: dbUser.id },
+            create: { userId: dbUser.id, ...tokens },
+            update: tokens,
+          });
+          // a fresh refresh token clears any pending reconnect state
+          if (dbUser.status === "needs_reconnect") {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { status: "active" },
+            });
+          }
+        }
+
+        return true;
+      } catch (err) {
+        // Surface the real cause in Vercel logs — Auth.js otherwise swallows
+        // this into a generic "Configuration" error page.
+        console.error("[dossier][signIn] failed to persist user/tokens:", err);
+        throw err;
+      }
     },
     async jwt({ token, account }) {
       // on initial sign-in, pin our DB user id into the JWT

@@ -89,24 +89,46 @@ export async function classifySensitivity(
  */
 export async function triageThreads(
   threads: CompactThread[],
-  todayIso: string
+  todayIso: string,
+  assistantProfile?: string | null
 ): Promise<TriageResult> {
   if (threads.length === 0) {
     return { actionItems: [], calendarItems: [], fyi: [] };
   }
+  const profileBlock = assistantProfile?.trim()
+    ? "\n\nWHAT YOU KNOW ABOUT THIS USER (use it to prioritize and phrase like " +
+      "they would):\n" +
+      assistantProfile.trim() +
+      "\n"
+    : "";
   const system =
     "You are an inbox chief of staff. Given email threads, identify what the " +
     "user must act on. Today is " +
     todayIso +
     ". Return STRICT JSON with keys actionItems, calendarItems, fyi.\n" +
     "- actionItems[]: {threadId, replyToMessageId, title, summary, waitingOn, " +
-    "deadline (ISO date or null), priority (1=urgent,2=normal,3=low), " +
-    "recommendedStep, needsReply}.\n" +
-    "- calendarItems[]: {threadId, title, date, start, end, location, timeTbd}.\n" +
-    "- fyi[]: {title, summary} for things worth knowing but needing no action.\n" +
+    "deadline (ISO date or null), priority (1|2|3), recommendedStep, needsReply}.\n" +
+    "- calendarItems[]: {threadId, title, date (YYYY-MM-DD), start (ISO datetime), " +
+    "end (ISO datetime), location, timeTbd}.\n" +
+    "- fyi[]: {title, summary} for things worth knowing but needing no action.\n\n" +
+    "PRESCRIPTIVE PRIORITY — judge each action item by its content, dates, who is " +
+    "waiting, and consequences, and set priority deliberately:\n" +
+    "  1 = urgent: a stated deadline within ~48h or already overdue; a person is " +
+    "blocked waiting on the user; time-sensitive commitments (RSVP, scheduling, " +
+    "approvals); anything with clear cost to delay.\n" +
+    "  2 = normal: a real response or task is owed but there is no imminent " +
+    "deadline.\n" +
+    "  3 = low: minor, easily deferred, or nice-to-do.\n" +
+    "Rank urgency on the actual stakes, not just whether a date exists. Reflect " +
+    "the deadline you infer in the `deadline` field (ISO date) when one is stated.\n\n" +
+    "CALENDAR — when a thread proposes or confirms a meeting/event, extract it. If " +
+    "a specific time is given, set `start` (and `end` if known) as ISO datetimes " +
+    "and timeTbd=false. If only a date is known, set `date` and timeTbd=true. " +
+    "Include location when stated.\n\n" +
     "Only include an action item when the user genuinely owes a response or task. " +
     "Always echo the exact threadId and last messageId you were given. " +
-    "Do not invent deadlines — use null when none is stated. Output JSON only.";
+    "Do not invent deadlines or times — use null when none is stated. Output JSON only." +
+    profileBlock;
   const user = JSON.stringify(
     threads.map((t) => ({
       threadId: t.threadId,
@@ -128,6 +150,7 @@ export async function generateDraft(args: {
   conversation: string;
   voiceSample?: string | null;
   signature?: string | null;
+  assistantProfile?: string | null;
 }): Promise<string> {
   const system =
     "You write email reply drafts for the user to review and send themselves. " +
@@ -138,6 +161,9 @@ export async function generateDraft(args: {
       ? `End with this signature exactly: "${args.signature}".`
       : "Do not add a signature.");
   const user = [
+    args.assistantProfile?.trim()
+      ? `What you know about the user:\n${args.assistantProfile.trim()}\n`
+      : "",
     args.voiceSample ? `Voice sample (mimic this style):\n${args.voiceSample}\n` : "",
     `Thread to reply to:\n${args.conversation}`,
   ].join("\n");
@@ -153,4 +179,44 @@ export async function generateDraft(args: {
     .map((b) => b.text)
     .join("")
     .trim();
+}
+
+/**
+ * Reflection pass (Haiku): update the learned profile from what the user did
+ * with their action items. Operates on titles + the action taken only — never
+ * raw email bodies or sensitive content — so it learns habits, not secrets.
+ */
+export async function reflectProfile(args: {
+  currentProfile: string | null;
+  actions: { title: string; action: string }[];
+}): Promise<string> {
+  const current = args.currentProfile?.trim() ?? "";
+  if (args.actions.length === 0) return current;
+
+  const system =
+    "You maintain a short profile of how a user manages their inbox, so an " +
+    "assistant can prioritize and write like them. Given the current profile " +
+    "and the user's recent actions on items (completed / snoozed / dismissed / " +
+    "deleted), output an UPDATED profile: concise bullet points capturing " +
+    "durable preferences — what they treat as urgent, recurring people or " +
+    "topics they care about, what they routinely ignore or defer, and tone. " +
+    "Merge with the existing profile; drop anything contradicted. Keep it under " +
+    "180 words. Do not include one-off specifics or anything sensitive. Output " +
+    "the profile text only, no preamble.";
+  const user =
+    `Current profile:\n${current || "(none yet)"}\n\nRecent actions:\n` +
+    args.actions.map((a) => `- ${a.action}: ${a.title}`).join("\n");
+
+  const res = await anthropic().messages.create({
+    model: HAIKU,
+    max_tokens: 512,
+    system,
+    messages: [{ role: "user", content: user }],
+  });
+  const text = res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("")
+    .trim();
+  return text || current;
 }

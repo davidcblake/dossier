@@ -1,18 +1,8 @@
 import { google } from "googleapis";
 import type { gmail_v1 } from "googleapis";
-import { prisma } from "@/lib/prisma";
-import { decryptToken, encryptToken } from "@/lib/crypto";
+import { authForUser } from "@/lib/google-auth";
 
-/**
- * Thrown when Google rejects the refresh token (Testing-mode 7-day expiry).
- * Callers mark the user `needs_reconnect` and skip them.
- */
-export class NeedsReconnectError extends Error {
-  constructor() {
-    super("Google refresh token is invalid (needs_reconnect)");
-    this.name = "NeedsReconnectError";
-  }
-}
+export { NeedsReconnectError } from "@/lib/google-auth";
 
 /** A privacy-trimmed representation of a thread for the AI passes. */
 export interface CompactThread {
@@ -25,52 +15,9 @@ export interface CompactThread {
   body: string;
 }
 
-function oauthClient() {
-  return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  );
-}
-
-/**
- * Produce an authenticated Gmail client for a user, refreshing the access token
- * from the stored (encrypted) refresh token. On invalid_grant, marks the user
- * needs_reconnect and throws NeedsReconnectError.
- */
+/** Authenticated Gmail client for a user (refreshes the access token). */
 export async function gmailForUser(userId: string): Promise<gmail_v1.Gmail> {
-  const account = await prisma.googleAccount.findUnique({ where: { userId } });
-  if (!account) throw new NeedsReconnectError();
-
-  const auth = oauthClient();
-  auth.setCredentials({ refresh_token: decryptToken(account.refreshToken) });
-
-  try {
-    const { credentials } = await auth.refreshAccessToken();
-    auth.setCredentials(credentials);
-    if (credentials.access_token) {
-      await prisma.googleAccount.update({
-        where: { userId },
-        data: {
-          accessToken: encryptToken(credentials.access_token),
-          expiresAt: credentials.expiry_date
-            ? new Date(credentials.expiry_date)
-            : null,
-        },
-      });
-    }
-  } catch (err: unknown) {
-    const msg = String((err as { message?: string })?.message ?? err);
-    if (/invalid_grant/i.test(msg)) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { status: "needs_reconnect" },
-      });
-      throw new NeedsReconnectError();
-    }
-    throw err;
-  }
-
-  return google.gmail({ version: "v1", auth });
+  return google.gmail({ version: "v1", auth: await authForUser(userId) });
 }
 
 function header(
@@ -132,6 +79,98 @@ export async function listThreadIds(
     .map((t) => t.id)
     .filter((id): id is string => Boolean(id));
   return Array.from(new Set([...ids, ...extraThreadIds]));
+}
+
+export interface ReplyTarget {
+  to: string;
+  subject: string;
+  inReplyTo: string;
+  references: string;
+  conversation: string;
+}
+
+/**
+ * Gather everything needed to draft a threaded reply: recipient, Re: subject,
+ * In-Reply-To / References headers, and the trimmed conversation text for the
+ * AI prompt. Reads only — used by the draft route (never sends).
+ */
+export async function getReplyTarget(
+  gmail: gmail_v1.Gmail,
+  threadId: string
+): Promise<ReplyTarget> {
+  const res = await gmail.users.threads.get({
+    userId: "me",
+    id: threadId,
+    format: "full",
+  });
+  const messages = res.data.messages ?? [];
+  const last = messages[messages.length - 1];
+
+  const replyTo = header(last, "Reply-To");
+  const to = replyTo || header(last, "From");
+  const rawSubject = header(messages[0], "Subject") || "(no subject)";
+  const subject = /^re:/i.test(rawSubject) ? rawSubject : `Re: ${rawSubject}`;
+  const lastMessageId = header(last, "Message-ID") || header(last, "Message-Id");
+  const priorRefs = header(last, "References");
+  const references = [priorRefs, lastMessageId].filter(Boolean).join(" ");
+
+  const conversation = messages
+    .slice(-3)
+    .map((m) => `From: ${header(m, "From")}\n${extractBody(m)}`)
+    .join("\n\n---\n\n")
+    .slice(0, 4000);
+
+  return { to, subject, inReplyTo: lastMessageId, references, conversation };
+}
+
+function encodeHeaderWord(value: string): string {
+  // RFC 2047 encode non-ASCII header values (e.g. names with accents).
+  return /[^\x20-\x7e]/.test(value)
+    ? `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`
+    : value;
+}
+
+export interface CreateDraftArgs {
+  threadId: string;
+  to: string;
+  subject: string;
+  inReplyTo: string;
+  references: string;
+  body: string;
+}
+
+/**
+ * Create a threaded reply draft in Gmail Drafts. Uses gmail.compose only —
+ * there is deliberately no send path anywhere in this codebase.
+ * Returns the created draft id.
+ */
+export async function createDraft(
+  gmail: gmail_v1.Gmail,
+  args: CreateDraftArgs
+): Promise<string> {
+  const lines = [
+    `To: ${encodeHeaderWord(args.to)}`,
+    `Subject: ${encodeHeaderWord(args.subject)}`,
+  ];
+  if (args.inReplyTo) {
+    lines.push(`In-Reply-To: ${args.inReplyTo}`);
+    if (args.references) lines.push(`References: ${args.references}`);
+  }
+  lines.push('Content-Type: text/plain; charset="UTF-8"', "", args.body);
+
+  const raw = Buffer.from(lines.join("\r\n"), "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const res = await gmail.users.drafts.create({
+    userId: "me",
+    requestBody: { message: { threadId: args.threadId, raw } },
+  });
+  const id = res.data.id;
+  if (!id) throw new Error("Gmail did not return a draft id");
+  return id;
 }
 
 /** Fetch one thread and build its compact, quote-stripped representation. */

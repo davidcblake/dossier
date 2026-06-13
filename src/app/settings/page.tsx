@@ -3,6 +3,7 @@ import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listCalendars, type CalendarChoice } from "@/lib/calendar";
 import { BottomNav } from "@/components/bottom-nav";
+import { NotificationsToggle } from "./notifications-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -198,7 +199,15 @@ export default async function SettingsPage({
         </button>
       </form>
 
-        <div className="mt-10 border-t border-(--color-gold-soft) pt-6">
+        <div className="mt-8 border-t border-(--color-gold-soft) pt-6">
+          <h2 className="text-sm font-medium">Notifications</h2>
+          <p className="mb-3 mt-1 text-xs text-(--color-ink-soft)">
+            Get a push when your daily digest is ready.
+          </p>
+          <NotificationsToggle />
+        </div>
+
+        <div className="mt-8 border-t border-(--color-gold-soft) pt-6">
           <form
             action={async () => {
               "use server";

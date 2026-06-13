@@ -31,3 +31,35 @@ self.addEventListener("fetch", (event) => {
   // Everything else (Next's hashed static assets, API calls) goes to network
   // and is handled by the browser's normal HTTP cache.
 });
+
+// Daily digest notifications.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = data.title || "Dossier";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: data.url || "/today" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/today";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes("/today") && "focus" in w) return w.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

@@ -32,7 +32,7 @@ pnpm test
 ## Build status
 
 - [x] **Phase 1 — Scaffold:** Next.js + Prisma + Auth.js Google OAuth (read/compose/calendar scopes only), encrypted refresh-token storage
-- [ ] Phase 2 — Read loop (manual scan → /today)
+- [x] **Phase 2 — Read loop:** “Scan now” → Gmail fetch → sensitivity pass (Haiku) → triage/synthesis (Sonnet) → reconcile/persist → render /today. Requires `ANTHROPIC_API_KEY`.
 - [ ] Phase 3 — Actions (drafts, calendar add, item status)
 - [ ] Phase 4 — Running list
 - [ ] Phase 5 — Schedule + push + PWA

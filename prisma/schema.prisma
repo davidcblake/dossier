@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  signature     String? // for drafts, e.g. "President Blake"
+  voiceSample   String? // pasted sent-mail excerpts
+  timezone      String         @default("America/Denver")
+  digestHour    Int            @default(7)
+  calendarId    String? // target Google calendar
+  pushSub       Json?
+  googleAccount GoogleAccount?
+  items         ActionItem[]
+  digests       Digest[]
+  status        String         @default("active") // active | needs_reconnect
+}
+
+model GoogleAccount {
+  userId       String    @id
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String // encrypted (AES-256-GCM)
+  accessToken  String? // encrypted (AES-256-GCM)
+  expiresAt    DateTime?
+}
+
+model ActionItem {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  summary          String? // null when sensitive
+  waitingOn        String?
+  deadline         DateTime?
+  priority         Int       @default(2)
+  sensitive        Boolean   @default(false)
+  recommendedStep  String?
+  threadId         String?
+  replyToMessageId String?
+  status           String    @default("open") // open|done|dismissed|auto_resolved
+  draftId          String? // gmail draft id once created
+  eventId          String? // calendar event id once added
+  firstSeen        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  @@unique([userId, threadId])
+}
+
+model Digest {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date     DateTime
+  fyi      Json // [{title, summary}]
+  calendar Json // calendar candidates incl. timeTbd
+  stats    Json // counts for the push copy
+}

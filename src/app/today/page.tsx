@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ScanButton } from "./scan-button";
 import { BottomNav } from "@/components/bottom-nav";
+import { ReconnectBanner } from "@/components/reconnect-banner";
 import { ActionCard, type ActionCardItem } from "@/components/action-card";
 import {
   CalendarCandidateCard,
@@ -97,10 +98,14 @@ export default async function TodayPage() {
           {connected && <ScanButton />}
         </header>
 
-        {!connected && (
-          <section className="mt-6 rounded-2xl border border-(--color-gold-soft) bg-white/60 p-5 text-sm">
-            ⚠️ Google not fully connected — open Settings and reconnect.
-          </section>
+        {user.status === "needs_reconnect" ? (
+          <ReconnectBanner />
+        ) : (
+          !connected && (
+            <section className="mt-6 rounded-2xl border border-(--color-gold-soft) bg-white/60 p-5 text-sm">
+              ⚠️ Google not fully connected — open Settings and reconnect.
+            </section>
+          )
         )}
 
         <section className="mt-8">

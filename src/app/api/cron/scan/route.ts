@@ -6,21 +6,14 @@ import { sendPushToUser } from "@/lib/push";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-/** Current hour (0–23) in a timezone. */
-function localHour(timezone: string): number {
-  return Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone || "America/Denver",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(new Date())
-  );
-}
-
 /**
- * Hourly Vercel Cron. Fans out to every active user whose local time matches
- * their digestHour, scans them, and sends the daily push. Protected by
- * CRON_SECRET (Vercel sends it as a Bearer token).
+ * Daily Vercel Cron (Hobby plan allows once-per-day). Scans every active user
+ * and sends the daily push. Protected by CRON_SECRET (Vercel sends it as a
+ * Bearer token).
+ *
+ * On Vercel Pro you can switch vercel.json to an hourly schedule ("0 * * * *")
+ * and re-enable per-user `digestHour` fan-out by skipping users whose local
+ * hour doesn't match.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -33,12 +26,11 @@ export async function GET(request: Request) {
 
   const users = await prisma.user.findMany({
     where: { status: "active" },
-    select: { id: true, timezone: true, digestHour: true },
+    select: { id: true },
   });
 
   let scanned = 0;
   for (const user of users) {
-    if (localHour(user.timezone) !== user.digestHour) continue;
     try {
       const result = await scanUser(user.id);
       scanned++;

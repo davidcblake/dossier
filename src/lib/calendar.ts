@@ -59,9 +59,15 @@ export async function addEvent(
   };
 
   if (args.timeTbd || (!args.start && args.date)) {
-    const day = (args.date ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
-    requestBody.start = { date: day };
-    requestBody.end = { date: day };
+    const startDay = (args.date ?? new Date().toISOString().slice(0, 10)).slice(
+      0,
+      10
+    );
+    // Google all-day events use an EXCLUSIVE end date → next day for a 1-day event.
+    const endDay = new Date(`${startDay}T00:00:00Z`);
+    endDay.setUTCDate(endDay.getUTCDate() + 1);
+    requestBody.start = { date: startDay };
+    requestBody.end = { date: endDay.toISOString().slice(0, 10) };
   } else {
     const start = args.start ?? new Date().toISOString();
     const end =

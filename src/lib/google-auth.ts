@@ -1,8 +1,8 @@
 import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
+import { decryptToken, encryptToken } from "@/lib/crypto";
 
 type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
-import { decryptToken, encryptToken } from "@/lib/crypto";
 
 /**
  * Thrown when Google rejects the refresh token (Testing-mode 7-day expiry).

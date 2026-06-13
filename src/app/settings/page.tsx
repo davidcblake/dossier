@@ -12,6 +12,7 @@ async function saveSettings(formData: FormData) {
   if (!session?.user?.id) redirect("/");
 
   const digestHourRaw = Number(formData.get("digestHour"));
+  const autopilot = formData.get("autopilotLevel") as string;
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
@@ -19,6 +20,10 @@ async function saveSettings(formData: FormData) {
       greetingName: (formData.get("greetingName") as string) || null,
       signature: (formData.get("signature") as string) || null,
       voiceSample: (formData.get("voiceSample") as string) || null,
+      assistantProfile: (formData.get("assistantProfile") as string) || null,
+      autopilotLevel: ["suggest", "prepare", "proactive"].includes(autopilot)
+        ? autopilot
+        : "prepare",
       digestHour:
         Number.isInteger(digestHourRaw) && digestHourRaw >= 0 && digestHourRaw <= 23
           ? digestHourRaw
@@ -62,6 +67,27 @@ export default async function SettingsPage({
       )}
 
       <form action={saveSettings} className="mt-8 space-y-6">
+        <div>
+          <label className="block text-sm font-medium">Autopilot</label>
+          <select
+            name="autopilotLevel"
+            defaultValue={user.autopilotLevel}
+            className="mt-2 w-full rounded-lg border border-(--color-gold-soft) bg-white/60 px-3 py-2 text-sm"
+          >
+            <option value="suggest">Suggest only — I tap to draft / add</option>
+            <option value="prepare">
+              Auto-prepare drafts — ready in Gmail for my approval
+            </option>
+            <option value="proactive">
+              Proactive — prepare aggressively, surface exceptions
+            </option>
+          </select>
+          <p className="mt-1 text-xs text-(--color-ink-soft)">
+            Dossier never sends email and never writes your calendar without a
+            tap — autopilot only prepares drafts for your approval.
+          </p>
+        </div>
+
         <div>
           <label className="block text-sm font-medium">Target calendar</label>
           {calendarError ? (
@@ -144,6 +170,22 @@ export default async function SettingsPage({
             name="voiceSample"
             rows={6}
             defaultValue={user.voiceSample ?? ""}
+            className="mt-2 w-full rounded-lg border border-(--color-gold-soft) bg-white/60 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">
+            What Dossier has learned about you
+          </label>
+          <p className="mt-1 text-xs text-(--color-ink-soft)">
+            Built automatically from how you triage. Edit or clear it anytime.
+          </p>
+          <textarea
+            name="assistantProfile"
+            rows={6}
+            defaultValue={user.assistantProfile ?? ""}
+            placeholder="Dossier will fill this in as it learns your habits…"
             className="mt-2 w-full rounded-lg border border-(--color-gold-soft) bg-white/60 px-3 py-2 text-sm"
           />
         </div>

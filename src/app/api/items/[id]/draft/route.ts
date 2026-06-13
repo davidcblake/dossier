@@ -39,6 +39,7 @@ export async function POST(
       conversation: target.conversation,
       voiceSample: user?.voiceSample,
       signature: user?.signature,
+      assistantProfile: user?.assistantProfile,
     });
     const draftId = await createDraft(gmail, {
       threadId: item.threadId,

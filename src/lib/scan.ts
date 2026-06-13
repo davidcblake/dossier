@@ -2,12 +2,22 @@ import { prisma } from "@/lib/prisma";
 import {
   gmailForUser,
   getCompactThread,
+  getReplyTarget,
+  createDraft,
   listThreadIds,
   NeedsReconnectError,
   type CompactThread,
 } from "@/lib/gmail";
-import { classifySensitivity, triageThreads } from "@/lib/ai";
+import {
+  classifySensitivity,
+  triageThreads,
+  generateDraft,
+  reflectProfile,
+} from "@/lib/ai";
 import { reconcile } from "@/lib/reconcile";
+
+// Cap auto-prepared drafts per scan to bound time/cost within the function limit.
+const MAX_AUTO_DRAFTS = 5;
 
 export interface ScanResult {
   status: "ok" | "needs_reconnect";
@@ -74,9 +84,10 @@ export async function scanUser(userId: string): Promise<ScanResult> {
     }
   }
 
-  // Pass B — triage + synthesis over non-sensitive threads only.
+  // Pass B — triage + synthesis over non-sensitive threads only. The learned
+  // profile sharpens prioritization toward how this user actually works.
   const todayIso = new Date().toISOString().slice(0, 10);
-  const triage = await triageThreads(safeThreads, todayIso);
+  const triage = await triageThreads(safeThreads, todayIso, user.assistantProfile);
 
   const lastSenderByThread: Record<string, string> = {};
   for (const t of threads) lastSenderByThread[t.threadId] = t.lastSender;
@@ -141,6 +152,84 @@ export async function scanUser(userId: string): Promise<ScanResult> {
     });
   }
 
+  // Autopilot — auto-prepare reply drafts (saved to Gmail Drafts, never sent).
+  // Calendar adds stay one-tap by product rule; the cron never writes calendar.
+  let draftsPrepared = 0;
+  if (user.autopilotLevel !== "suggest") {
+    const repliable = triage.actionItems.filter(
+      (a) => a.needsReply && a.threadId
+    );
+    for (const a of repliable) {
+      if (draftsPrepared >= MAX_AUTO_DRAFTS) break;
+      if (!a.threadId) continue;
+      try {
+        const item = await prisma.actionItem.findUnique({
+          where: { userId_threadId: { userId, threadId: a.threadId } },
+        });
+        if (!item || item.sensitive || item.draftId) continue;
+        const target = await getReplyTarget(gmail, a.threadId);
+        const body = await generateDraft({
+          conversation: target.conversation,
+          voiceSample: user.voiceSample,
+          signature: user.signature,
+          assistantProfile: user.assistantProfile,
+        });
+        const draftId = await createDraft(gmail, {
+          threadId: a.threadId,
+          to: target.to,
+          subject: target.subject,
+          inReplyTo: target.inReplyTo,
+          references: target.references,
+          body,
+        });
+        await prisma.actionItem.update({
+          where: { id: item.id },
+          data: { draftId },
+        });
+        draftsPrepared++;
+      } catch {
+        // one failed auto-draft never sinks the scan
+      }
+    }
+  }
+
+  // Reflection — learn habits from how the user has been triaging (titles +
+  // action only; sensitive items excluded). Failures are non-fatal.
+  try {
+    const recent = await prisma.actionItem.findMany({
+      where: {
+        userId,
+        sensitive: false,
+        status: { in: ["done", "dismissed", "auto_resolved"] },
+      },
+      orderBy: { resolvedAt: "desc" },
+      take: 25,
+      select: { title: true, status: true },
+    });
+    if (recent.length > 0) {
+      const actionWord: Record<string, string> = {
+        done: "completed",
+        dismissed: "dismissed",
+        auto_resolved: "replied and resolved",
+      };
+      const updated = await reflectProfile({
+        currentProfile: user.assistantProfile,
+        actions: recent.map((r) => ({
+          title: r.title,
+          action: actionWord[r.status] ?? r.status,
+        })),
+      });
+      if (updated && updated !== user.assistantProfile) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { assistantProfile: updated },
+        });
+      }
+    }
+  } catch {
+    // learning is best-effort
+  }
+
   // Persist the digest (FYI + calendar candidates + stats for the push copy).
   await prisma.digest.create({
     data: {
@@ -152,6 +241,7 @@ export async function scanUser(userId: string): Promise<ScanResult> {
         actionItems: upserts.length,
         sensitive: sensitiveThreads.length,
         threadsScanned: threads.length,
+        draftsPrepared,
       },
     },
   });

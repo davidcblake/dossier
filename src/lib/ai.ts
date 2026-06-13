@@ -89,11 +89,18 @@ export async function classifySensitivity(
  */
 export async function triageThreads(
   threads: CompactThread[],
-  todayIso: string
+  todayIso: string,
+  assistantProfile?: string | null
 ): Promise<TriageResult> {
   if (threads.length === 0) {
     return { actionItems: [], calendarItems: [], fyi: [] };
   }
+  const profileBlock = assistantProfile?.trim()
+    ? "\n\nWHAT YOU KNOW ABOUT THIS USER (use it to prioritize and phrase like " +
+      "they would):\n" +
+      assistantProfile.trim() +
+      "\n"
+    : "";
   const system =
     "You are an inbox chief of staff. Given email threads, identify what the " +
     "user must act on. Today is " +
@@ -120,7 +127,8 @@ export async function triageThreads(
     "Include location when stated.\n\n" +
     "Only include an action item when the user genuinely owes a response or task. " +
     "Always echo the exact threadId and last messageId you were given. " +
-    "Do not invent deadlines or times — use null when none is stated. Output JSON only.";
+    "Do not invent deadlines or times — use null when none is stated. Output JSON only." +
+    profileBlock;
   const user = JSON.stringify(
     threads.map((t) => ({
       threadId: t.threadId,
@@ -142,6 +150,7 @@ export async function generateDraft(args: {
   conversation: string;
   voiceSample?: string | null;
   signature?: string | null;
+  assistantProfile?: string | null;
 }): Promise<string> {
   const system =
     "You write email reply drafts for the user to review and send themselves. " +
@@ -152,6 +161,9 @@ export async function generateDraft(args: {
       ? `End with this signature exactly: "${args.signature}".`
       : "Do not add a signature.");
   const user = [
+    args.assistantProfile?.trim()
+      ? `What you know about the user:\n${args.assistantProfile.trim()}\n`
+      : "",
     args.voiceSample ? `Voice sample (mimic this style):\n${args.voiceSample}\n` : "",
     `Thread to reply to:\n${args.conversation}`,
   ].join("\n");
@@ -167,4 +179,44 @@ export async function generateDraft(args: {
     .map((b) => b.text)
     .join("")
     .trim();
+}
+
+/**
+ * Reflection pass (Haiku): update the learned profile from what the user did
+ * with their action items. Operates on titles + the action taken only — never
+ * raw email bodies or sensitive content — so it learns habits, not secrets.
+ */
+export async function reflectProfile(args: {
+  currentProfile: string | null;
+  actions: { title: string; action: string }[];
+}): Promise<string> {
+  const current = args.currentProfile?.trim() ?? "";
+  if (args.actions.length === 0) return current;
+
+  const system =
+    "You maintain a short profile of how a user manages their inbox, so an " +
+    "assistant can prioritize and write like them. Given the current profile " +
+    "and the user's recent actions on items (completed / snoozed / dismissed / " +
+    "deleted), output an UPDATED profile: concise bullet points capturing " +
+    "durable preferences — what they treat as urgent, recurring people or " +
+    "topics they care about, what they routinely ignore or defer, and tone. " +
+    "Merge with the existing profile; drop anything contradicted. Keep it under " +
+    "180 words. Do not include one-off specifics or anything sensitive. Output " +
+    "the profile text only, no preamble.";
+  const user =
+    `Current profile:\n${current || "(none yet)"}\n\nRecent actions:\n` +
+    args.actions.map((a) => `- ${a.action}: ${a.title}`).join("\n");
+
+  const res = await anthropic().messages.create({
+    model: HAIKU,
+    max_tokens: 512,
+    system,
+    messages: [{ role: "user", content: user }],
+  });
+  const text = res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("")
+    .trim();
+  return text || current;
 }

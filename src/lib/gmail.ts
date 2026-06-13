@@ -123,11 +123,21 @@ export async function getReplyTarget(
   return { to, subject, inReplyTo: lastMessageId, references, conversation };
 }
 
-function encodeHeaderWord(value: string): string {
-  // RFC 2047 encode non-ASCII header values (e.g. names with accents).
+function encodeWord(value: string): string {
+  // RFC 2047 encode a non-ASCII header word (e.g. a name with accents).
   return /[^\x20-\x7e]/.test(value)
     ? `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`
     : value;
+}
+
+/** Encode only the display-name part of an address; keep <addr> raw. */
+function encodeAddress(value: string): string {
+  const m = value.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (m) {
+    const name = m[1];
+    return name ? `${encodeWord(name)} <${m[2]}>` : `<${m[2]}>`;
+  }
+  return value; // bare address — leave as-is
 }
 
 export interface CreateDraftArgs {
@@ -149,8 +159,8 @@ export async function createDraft(
   args: CreateDraftArgs
 ): Promise<string> {
   const lines = [
-    `To: ${encodeHeaderWord(args.to)}`,
-    `Subject: ${encodeHeaderWord(args.subject)}`,
+    `To: ${encodeAddress(args.to)}`,
+    `Subject: ${encodeWord(args.subject)}`,
   ];
   if (args.inReplyTo) {
     lines.push(`In-Reply-To: ${args.inReplyTo}`);

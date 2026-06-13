@@ -114,6 +114,33 @@ export async function scanUser(userId: string): Promise<ScanResult> {
     });
   }
 
+  // Refresh calendar candidates: drop stale suggestions, keep added/dismissed,
+  // and add newly-suggested events (skip ones already added or dismissed).
+  await prisma.calendarCandidate.deleteMany({
+    where: { userId, status: "suggested" },
+  });
+  const handled = await prisma.calendarCandidate.findMany({
+    where: { userId, status: { in: ["added", "dismissed"] } },
+    select: { title: true },
+  });
+  const handledTitles = new Set(handled.map((c) => c.title.toLowerCase()));
+  for (const c of triage.calendarItems) {
+    if (handledTitles.has(c.title.toLowerCase())) continue;
+    await prisma.calendarCandidate.create({
+      data: {
+        userId,
+        title: c.title,
+        start: c.start && !Number.isNaN(Date.parse(c.start)) ? new Date(c.start) : null,
+        end: c.end && !Number.isNaN(Date.parse(c.end)) ? new Date(c.end) : null,
+        date: c.date && !Number.isNaN(Date.parse(c.date)) ? new Date(c.date) : null,
+        location: c.location ?? null,
+        timeTbd: Boolean(c.timeTbd),
+        threadId: c.threadId ?? null,
+        status: "suggested",
+      },
+    });
+  }
+
   // Persist the digest (FYI + calendar candidates + stats for the push copy).
   await prisma.digest.create({
     data: {

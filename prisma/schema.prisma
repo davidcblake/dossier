@@ -12,15 +12,17 @@ model User {
   email         String         @unique
   name          String?
   signature     String? // for drafts, e.g. "President Blake"
+  greetingName  String? // how to address the user, e.g. "Dave" or "President"
   voiceSample   String? // pasted sent-mail excerpts
   timezone      String         @default("America/Denver")
   digestHour    Int            @default(7)
   calendarId    String? // target Google calendar
-  pushSub       Json?
-  googleAccount GoogleAccount?
-  items         ActionItem[]
-  digests       Digest[]
-  status        String         @default("active") // active | needs_reconnect
+  pushSub            Json?
+  googleAccount      GoogleAccount?
+  items              ActionItem[]
+  digests            Digest[]
+  calendarCandidates CalendarCandidate[]
+  status             String         @default("active") // active | needs_reconnect
 }
 
 model GoogleAccount {
@@ -49,6 +51,7 @@ model ActionItem {
   eventId          String? // calendar event id once added
   firstSeen        DateTime  @default(now())
   resolvedAt       DateTime?
+  snoozedUntil     DateTime? // when set in the future, hidden from the open list
 
   @@unique([userId, threadId])
 }
@@ -61,4 +64,20 @@ model Digest {
   fyi      Json // [{title, summary}]
   calendar Json // calendar candidates incl. timeTbd
   stats    Json // counts for the push copy
+}
+
+model CalendarCandidate {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  start     DateTime? // specific datetime
+  end       DateTime?
+  date      DateTime? // all-day date when timeTbd
+  location  String?
+  timeTbd   Boolean   @default(false)
+  threadId  String?
+  status    String    @default("suggested") // suggested | added | dismissed
+  eventId   String? // calendar event id once added (so we can remove it)
+  createdAt DateTime  @default(now())
 }

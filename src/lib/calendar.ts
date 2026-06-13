@@ -84,3 +84,21 @@ export async function addEvent(
   if (!id) throw new Error("Calendar did not return an event id");
   return id;
 }
+
+/**
+ * Delete an event Dossier created (only ever called with an eventId we stored).
+ * Tolerates already-deleted events.
+ */
+export async function deleteEvent(
+  userId: string,
+  calendarId: string,
+  eventId: string
+): Promise<void> {
+  const cal = await calendarForUser(userId);
+  try {
+    await cal.events.delete({ calendarId, eventId });
+  } catch (err: unknown) {
+    const code = (err as { code?: number })?.code;
+    if (code !== 404 && code !== 410) throw err; // already gone is fine
+  }
+}

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { listCalendars, type CalendarChoice } from "@/lib/calendar";
+import { BottomNav } from "@/components/bottom-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,7 @@ async function saveSettings(formData: FormData) {
     where: { id: session.user.id },
     data: {
       calendarId: (formData.get("calendarId") as string) || null,
+      greetingName: (formData.get("greetingName") as string) || null,
       signature: (formData.get("signature") as string) || null,
       voiceSample: (formData.get("voiceSample") as string) || null,
       digestHour:
@@ -48,18 +49,11 @@ export default async function SettingsPage({
   }
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md px-6 py-10">
-      <header className="flex items-baseline justify-between">
+    <>
+      <main className="mx-auto min-h-dvh max-w-md px-6 pb-28 pt-10">
         <h1 className="font-(family-name:--font-display) text-4xl font-semibold">
           Settings
         </h1>
-        <Link
-          href="/today"
-          className="text-sm text-(--color-ink-soft) underline underline-offset-4"
-        >
-          Back to Today
-        </Link>
-      </header>
 
       {saved && (
         <p className="mt-4 rounded-lg bg-(--color-gold-soft) px-3 py-2 text-sm">
@@ -116,6 +110,21 @@ export default async function SettingsPage({
 
         <div>
           <label className="block text-sm font-medium">
+            How should we greet you?
+          </label>
+          <input
+            name="greetingName"
+            defaultValue={user.greetingName ?? ""}
+            placeholder="e.g. Dave, or President"
+            className="mt-2 w-full rounded-lg border border-(--color-gold-soft) bg-white/60 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-xs text-(--color-ink-soft)">
+            Used in your daily greeting (“Good morning, Dave”).
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">
             Signature (for drafts)
           </label>
           <input
@@ -146,6 +155,24 @@ export default async function SettingsPage({
           Save settings
         </button>
       </form>
-    </main>
+
+        <div className="mt-10 border-t border-(--color-gold-soft) pt-6">
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <button
+              type="submit"
+              className="text-sm text-(--color-ink-soft) underline underline-offset-4"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+      </main>
+      <BottomNav />
+    </>
   );
 }

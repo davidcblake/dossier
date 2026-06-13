@@ -1,28 +1,22 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ScanButton } from "./scan-button";
-import { ItemActions } from "./item-actions";
+import { BottomNav } from "@/components/bottom-nav";
+import { ActionCard, type ActionCardItem } from "@/components/action-card";
+import {
+  CalendarCandidateCard,
+  type CandidateView,
+} from "@/components/calendar-candidate-card";
+import {
+  priorityLabel,
+  ageLabel,
+  deadlineLabel,
+  calendarWhenLabel,
+  greeting,
+} from "@/lib/item-view";
 
 export const dynamic = "force-dynamic";
-
-function gmailLink(threadId: string | null) {
-  return threadId
-    ? `https://mail.google.com/mail/u/0/#inbox/${threadId}`
-    : undefined;
-}
-
-function deadlineLabel(deadline: Date | null): string | null {
-  if (!deadline) return null;
-  const days = Math.ceil(
-    (deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-  );
-  if (days < 0) return `overdue ${Math.abs(days)}d`;
-  if (days === 0) return "due today";
-  if (days === 1) return "due tomorrow";
-  return `due in ${days}d`;
-}
 
 export default async function TodayPage() {
   const session = await auth();
@@ -37,174 +31,131 @@ export default async function TodayPage() {
   const connected = Boolean(user.googleAccount?.refreshToken);
 
   const items = await prisma.actionItem.findMany({
-    where: { userId: user.id, status: "open" },
-    orderBy: [{ priority: "asc" }, { deadline: "asc" }, { firstSeen: "asc" }],
+    where: {
+      userId: user.id,
+      status: "open",
+      OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: new Date() } }],
+    },
+    orderBy: [
+      { priority: "asc" },
+      { deadline: { sort: "asc", nulls: "last" } },
+      { firstSeen: "asc" },
+    ],
   });
 
   const latestDigest = await prisma.digest.findFirst({
     where: { userId: user.id },
     orderBy: { date: "desc" },
   });
-  const calendar = (latestDigest?.calendar as CalendarCandidate[] | null) ?? [];
   const fyi = (latestDigest?.fyi as FyiEntry[] | null) ?? [];
 
+  const candidates = await prisma.calendarCandidate.findMany({
+    where: { userId: user.id, status: { in: ["suggested", "added"] } },
+    orderBy: [{ start: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+  });
+  const calendarCards: CandidateView[] = candidates.map((c) => ({
+    id: c.id,
+    title: c.title,
+    whenLabel: calendarWhenLabel({
+      start: c.start,
+      date: c.date,
+      timeTbd: c.timeTbd,
+      timezone: user.timezone,
+    }),
+    location: c.location,
+    status: c.status === "added" ? "added" : "suggested",
+  }));
+
+  const cards: ActionCardItem[] = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    summary: item.summary,
+    sensitive: item.sensitive,
+    threadId: item.threadId,
+    priorityLabel: priorityLabel(item.priority),
+    ageLabel: ageLabel(item.firstSeen),
+    deadlineLabel: deadlineLabel(item.deadline),
+    waitingOn: item.waitingOn,
+    recommendedStep: item.recommendedStep,
+    hasDraft: Boolean(item.draftId),
+    hasEvent: Boolean(item.eventId),
+  }));
+
   return (
-    <main className="mx-auto min-h-dvh max-w-md px-6 py-10">
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="font-(family-name:--font-display) text-4xl font-semibold">
-            Today
-          </h1>
-          <p className="mt-1 text-(--color-ink-soft)">
-            Good morning{user.name ? `, ${user.name.split(" ")[0]}` : ""}.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-3">
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
-            <button
-              type="submit"
-              className="text-sm text-(--color-ink-soft) underline underline-offset-4"
-            >
-              Sign out
-            </button>
-          </form>
+    <>
+      <main className="mx-auto min-h-dvh max-w-md px-5 pb-28 pt-10">
+        <header className="flex items-start justify-between">
+          <div>
+            <h1 className="font-(family-name:--font-display) text-4xl font-semibold">
+              {greeting({
+                timezone: user.timezone,
+                greetingName: user.greetingName,
+                name: user.name,
+              })}
+            </h1>
+          </div>
           {connected && <ScanButton />}
-          <Link
-            href="/settings"
-            className="text-sm text-(--color-ink-soft) underline underline-offset-4"
-          >
-            Settings
-          </Link>
-        </div>
-      </header>
+        </header>
 
-      {!connected && (
-        <section className="mt-6 rounded-2xl border border-(--color-gold-soft) bg-white/60 p-5 text-sm">
-          ⚠️ Google not fully connected — please sign in again and grant access.
-        </section>
-      )}
-
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-ink-soft)">
-          Waiting on you
-        </h2>
-        {items.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-(--color-gold-soft) p-5 text-sm text-(--color-ink-soft)">
-            Nothing waiting on you right now. Tap “Scan now” to check your inbox.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {items.map((item) => {
-              const link = gmailLink(item.threadId);
-              const due = deadlineLabel(item.deadline);
-              return (
-                <li
-                  key={item.id}
-                  className="rounded-2xl border border-(--color-gold-soft) bg-white/60 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-medium">
-                      {item.sensitive && <span aria-hidden>🔒 </span>}
-                      {item.title}
-                    </h3>
-                    {due && (
-                      <span className="shrink-0 rounded-full bg-(--color-gold-soft) px-2 py-0.5 text-xs text-(--color-ink)">
-                        {due}
-                      </span>
-                    )}
-                  </div>
-                  {item.summary && (
-                    <p className="mt-1 text-sm text-(--color-ink-soft)">
-                      {item.summary}
-                    </p>
-                  )}
-                  {item.waitingOn && (
-                    <p className="mt-1 text-xs text-(--color-ink-soft)">
-                      Waiting on: {item.waitingOn}
-                    </p>
-                  )}
-                  {item.recommendedStep && (
-                    <p className="mt-1 text-xs text-(--color-ink-soft)">
-                      Next: {item.recommendedStep}
-                    </p>
-                  )}
-                  {link && (
-                    <a
-                      href={link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 inline-block text-xs text-(--color-gold) underline underline-offset-2"
-                    >
-                      Open in Gmail →
-                    </a>
-                  )}
-                  <ItemActions
-                    id={item.id}
-                    sensitive={item.sensitive}
-                    hasDraft={Boolean(item.draftId)}
-                    hasEvent={Boolean(item.eventId)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+        {!connected && (
+          <section className="mt-6 rounded-2xl border border-(--color-gold-soft) bg-white/60 p-5 text-sm">
+            ⚠️ Google not fully connected — open Settings and reconnect.
+          </section>
         )}
-      </section>
 
-      {calendar.length > 0 && (
         <section className="mt-8">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-ink-soft)">
-            Calendar candidates
+            Waiting on you
           </h2>
-          <ul className="mt-3 space-y-2">
-            {calendar.map((c, i) => (
-              <li
-                key={i}
-                className="rounded-2xl border border-(--color-gold-soft) bg-white/60 p-4 text-sm"
-              >
-                <span className="font-medium">{c.title}</span>
-                {(c.date || c.start) && (
-                  <span className="text-(--color-ink-soft)">
-                    {" — "}
-                    {c.timeTbd ? `${c.date ?? ""} (time TBD)` : c.start ?? c.date}
+          {cards.length === 0 ? (
+            <p className="mt-3 rounded-2xl border border-dashed border-(--color-gold-soft) p-5 text-sm text-(--color-ink-soft)">
+              Nothing waiting on you right now. Tap “Scan now” to check your inbox.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {cards.map((item) => (
+                <ActionCard key={item.id} item={item} showThreadActions />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {calendarCards.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-ink-soft)">
+              Calendar
+            </h2>
+            <ul className="mt-3 space-y-3">
+              {calendarCards.map((c) => (
+                <CalendarCandidateCard key={c.id} item={c} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {fyi.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-ink-soft)">
+              FYI
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {fyi.map((f, i) => (
+                <li key={i} className="text-sm text-(--color-ink-soft)">
+                  <span className="font-medium text-(--color-ink)">
+                    {f.title}
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {fyi.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-(--color-ink-soft)">
-            FYI
-          </h2>
-          <ul className="mt-3 space-y-2">
-            {fyi.map((f, i) => (
-              <li key={i} className="text-sm text-(--color-ink-soft)">
-                <span className="font-medium text-(--color-ink)">{f.title}</span>
-                {f.summary ? ` — ${f.summary}` : ""}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </main>
+                  {f.summary ? ` — ${f.summary}` : ""}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </main>
+      <BottomNav />
+    </>
   );
 }
 
-interface CalendarCandidate {
-  title: string;
-  date?: string | null;
-  start?: string | null;
-  timeTbd?: boolean;
-}
 interface FyiEntry {
   title: string;
   summary?: string;

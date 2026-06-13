@@ -100,13 +100,27 @@ export async function triageThreads(
     todayIso +
     ". Return STRICT JSON with keys actionItems, calendarItems, fyi.\n" +
     "- actionItems[]: {threadId, replyToMessageId, title, summary, waitingOn, " +
-    "deadline (ISO date or null), priority (1=urgent,2=normal,3=low), " +
-    "recommendedStep, needsReply}.\n" +
-    "- calendarItems[]: {threadId, title, date, start, end, location, timeTbd}.\n" +
-    "- fyi[]: {title, summary} for things worth knowing but needing no action.\n" +
+    "deadline (ISO date or null), priority (1|2|3), recommendedStep, needsReply}.\n" +
+    "- calendarItems[]: {threadId, title, date (YYYY-MM-DD), start (ISO datetime), " +
+    "end (ISO datetime), location, timeTbd}.\n" +
+    "- fyi[]: {title, summary} for things worth knowing but needing no action.\n\n" +
+    "PRESCRIPTIVE PRIORITY — judge each action item by its content, dates, who is " +
+    "waiting, and consequences, and set priority deliberately:\n" +
+    "  1 = urgent: a stated deadline within ~48h or already overdue; a person is " +
+    "blocked waiting on the user; time-sensitive commitments (RSVP, scheduling, " +
+    "approvals); anything with clear cost to delay.\n" +
+    "  2 = normal: a real response or task is owed but there is no imminent " +
+    "deadline.\n" +
+    "  3 = low: minor, easily deferred, or nice-to-do.\n" +
+    "Rank urgency on the actual stakes, not just whether a date exists. Reflect " +
+    "the deadline you infer in the `deadline` field (ISO date) when one is stated.\n\n" +
+    "CALENDAR — when a thread proposes or confirms a meeting/event, extract it. If " +
+    "a specific time is given, set `start` (and `end` if known) as ISO datetimes " +
+    "and timeTbd=false. If only a date is known, set `date` and timeTbd=true. " +
+    "Include location when stated.\n\n" +
     "Only include an action item when the user genuinely owes a response or task. " +
     "Always echo the exact threadId and last messageId you were given. " +
-    "Do not invent deadlines — use null when none is stated. Output JSON only.";
+    "Do not invent deadlines or times — use null when none is stated. Output JSON only.";
   const user = JSON.stringify(
     threads.map((t) => ({
       threadId: t.threadId,

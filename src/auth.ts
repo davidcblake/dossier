@@ -25,10 +25,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider !== "google") return false;
-      const email = user.email;
-      if (!email) return false;
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") {
+        console.error("[dossier][signIn] rejected: non-google provider", {
+          provider: account?.provider ?? null,
+        });
+        return false;
+      }
+      const email = user.email ?? profile?.email ?? null;
+      if (!email) {
+        console.error("[dossier][signIn] rejected: no email present", {
+          userKeys: Object.keys(user ?? {}),
+          profileKeys: Object.keys(profile ?? {}),
+        });
+        return false;
+      }
 
       try {
         const dbUser = await prisma.user.upsert({

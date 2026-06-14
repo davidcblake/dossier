@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ClockIcon, TrashIcon } from "@/components/icons";
 
 export interface ActionCardItem {
   id: string;
@@ -181,7 +182,7 @@ export function ActionCard({
               onClick={() => resolve("snooze")}
               className="flex min-h-9 items-center gap-1 rounded-lg border border-(--color-gold-soft) px-3 py-1.5 text-xs font-medium transition hover:bg-(--color-gold-soft) active:scale-95"
             >
-              <span aria-hidden>⏰</span> 2d
+              <ClockIcon size={16} /> 2d
             </button>
             {showThreadActions && !item.sensitive && (
               <>
@@ -208,9 +209,9 @@ export function ActionCard({
               aria-label="Delete"
               title="Delete"
               onClick={() => resolve("delete")}
-              className="ml-auto flex min-h-9 items-center rounded-lg px-3 py-1.5 text-base text-(--color-ink-soft) transition hover:text-(--color-ink) active:scale-95"
+              className="ml-auto flex min-h-9 items-center rounded-lg px-3 py-1.5 text-(--color-ink-soft) transition hover:text-(--color-ink) active:scale-95"
             >
-              <span aria-hidden>🗑️</span>
+              <TrashIcon size={16} />
             </button>
           </div>
 

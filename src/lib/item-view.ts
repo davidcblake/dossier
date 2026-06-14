@@ -22,6 +22,30 @@ export function greeting(opts: {
   return who ? `Good ${partOfDay}, ${who}.` : `Good ${partOfDay}.`;
 }
 
+/**
+ * A short, conversational line under the greeting that reflects today's load.
+ * The opener rotates daily so the brief feels fresh; the tail is data-aware.
+ */
+const FOCUS_OPENERS = [
+  "Here's what to focus on today",
+  "Here's where things stand",
+  "Here's the plan for today",
+  "A few things have your name on them",
+  "Let's get after it",
+];
+
+export function focusLine(opts: { count: number; urgent: number }): string {
+  if (opts.count === 0) return "You're all clear — nothing waiting on you.";
+  const opener =
+    FOCUS_OPENERS[Math.floor(Date.now() / 86_400_000) % FOCUS_OPENERS.length];
+  if (opts.count === 1) return `${opener} — just one thing.`;
+  const tail =
+    opts.urgent > 0
+      ? `${opts.count} things, ${opts.urgent} time-sensitive.`
+      : `${opts.count} things on your plate.`;
+  return `${opener} — ${tail}`;
+}
+
 const PRIORITY_LABEL: Record<number, string> = {
   1: "Urgent",
   2: "Normal",

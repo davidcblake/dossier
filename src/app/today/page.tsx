@@ -16,19 +16,15 @@ import {
   MailIcon,
   InfoIcon,
 } from "@/components/icons";
-import { deadlineLabel, calendarWhenLabel } from "@/lib/item-view";
+import {
+  deadlineLabel,
+  calendarWhenLabel,
+  greeting,
+  focusLine,
+} from "@/lib/item-view";
 import { Emphasis } from "@/lib/emphasis";
 
 export const dynamic = "force-dynamic";
-
-function briefDate(timezone: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone || "America/Denver",
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date());
-}
 
 function gmailLink(threadId: string | null) {
   return threadId
@@ -103,17 +99,24 @@ export default async function TodayPage() {
   // Drafts recap — open items that already have a Gmail draft waiting to send.
   const drafts = items.filter((i) => i.draftId && !i.sensitive);
 
-  const lede = latestDigest
-    ? `Daily scan complete — your brief for ${briefDate(user.timezone)}.`
-    : `Your brief for ${briefDate(user.timezone)}.`;
+  const urgentCount = actionItems.filter((a) => a.urgent).length;
 
   return (
     <>
       <main className="mx-auto min-h-dvh max-w-md px-5 pb-28 pt-10">
         <header className="flex items-start justify-between gap-4">
-          <h1 className="font-(family-name:--font-serif) text-3xl font-semibold leading-tight">
-            {lede}
-          </h1>
+          <div className="min-w-0">
+            <h1 className="font-(family-name:--font-serif) text-3xl font-semibold leading-tight">
+              {greeting({
+                timezone: user.timezone,
+                greetingName: user.greetingName,
+                name: user.name,
+              })}
+            </h1>
+            <p className="mt-1 font-(family-name:--font-serif) text-[17px] leading-snug text-(--color-ink-soft)">
+              {focusLine({ count: actionItems.length, urgent: urgentCount })}
+            </p>
+          </div>
           {connected && <ScanButton />}
         </header>
 

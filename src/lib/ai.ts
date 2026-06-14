@@ -108,6 +108,11 @@ export async function triageThreads(
     ". Return STRICT JSON with keys actionItems, calendarItems, fyi.\n" +
     "- actionItems[]: {threadId, replyToMessageId, title, summary, waitingOn, " +
     "deadline (ISO date or null), priority (1|2|3), recommendedStep, needsReply}.\n" +
+    "  • title: a short, specific headline (e.g. \"Just Serve Meeting — June 14 (this Sunday)\").\n" +
+    "  • summary: 2–3 plain-sentence narrative that makes it instantly actionable — " +
+    "name WHO is waiting, WHAT they need, the relevant DATE, and WHY it matters or " +
+    "what's still pending. Write it the way a sharp chief of staff would brief the " +
+    "user. Do not restate the title.\n" +
     "- calendarItems[]: {threadId, title, date (YYYY-MM-DD), start (ISO datetime), " +
     "end (ISO datetime), location, timeTbd}.\n" +
     "- fyi[]: {title, summary} for things worth knowing but needing no action.\n\n" +

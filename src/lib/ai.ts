@@ -112,7 +112,12 @@ export async function triageThreads(
     "  • summary: 2–3 plain-sentence narrative that makes it instantly actionable — " +
     "name WHO is waiting, WHAT they need, the relevant DATE, and WHY it matters or " +
     "what's still pending. Write it the way a sharp chief of staff would brief the " +
-    "user. Do not restate the title.\n" +
+    "user. Do not restate the title. Use Markdown **bold** to emphasize the key " +
+    "dates, times, names, phone numbers, and the single most important phrase " +
+    "(e.g. what is blocked or overdue). Bold sparingly — a few words per sentence " +
+    "at most, never whole sentences.\n" +
+    "  • recommendedStep: one short imperative next step; you may **bold** a key " +
+    "name, date, or number in it.\n" +
     "- calendarItems[]: {threadId, title, date (YYYY-MM-DD), start (ISO datetime), " +
     "end (ISO datetime), location, timeTbd}.\n" +
     "- fyi[]: {title, summary} for things worth knowing but needing no action.\n\n" +

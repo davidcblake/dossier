@@ -1,38 +1,51 @@
 # Plug & Play — iOS Framework
 
-Reusable plumbing so any app you build the way you build Dossier (Next.js on
-Vercel, Postgres, Auth.js) can become a real, installable iPhone app —
-app icon, native push, Face ID, offline shell — without re-solving auth,
-push, and native packaging from scratch each time.
+Reusable plumbing so any Next.js/Vercel app (Dossier is the first) can
+become a real, installable iPhone app — app icon, native push, Face ID,
+offline shell — without re-solving auth, push, and native packaging from
+scratch per app. This is the shared repo every consuming app plugs into.
 
-**Status: design phase.** Dossier is "app #0" — the first consumer this
-framework will be wired into. Nothing here is plugged into Dossier's build
-yet; that's Phase 2 (see `docs/roadmap.md`). Today's deliverable is the
-architecture and the parts that are just TypeScript/config, which don't
-need a Mac to write correctly.
+**Status: framework skeleton + CI proven, not yet wired into a real app's
+native build.** `native-bridge` is real TypeScript but not yet installed
+anywhere; `docs/roadmap.md` has the phased plan and current status.
 
-**Hard constraint: this session runs on Linux.** Building, running, or
-testing an actual iOS app requires Xcode + CocoaPods on a Mac. Everything
-under this directory is designed to be finished on a Mac (yours, or a
-future Mac-capable Claude Code session) — see `docs/roadmap.md` for exactly
-where that handoff happens.
+**Building/running an actual iOS app needs Xcode + CocoaPods on macOS.**
+`.github/workflows/build-ios-app.yml` runs those steps on a GitHub-hosted
+macOS runner (Simulator build, no signing/Apple account required), so a
+personal Mac is optional — see `docs/distribution.md` and
+`docs/roadmap.md` for exactly when a Mac is (and isn't) needed.
 
 ## Layout
 
 ```
-ios-framework/
-  docs/
-    architecture.md       — why Capacitor + "remote mode", how a new app plugs in
-    auth-integration.md   — shared login (Accounts JWT) design
-    distribution.md       — free sideload vs TestFlight, and how to switch
-    roadmap.md            — phased build-out, current status
-  packages/
-    native-bridge/        — TS package: push registration, Keychain storage,
-                             Face ID gate, deep links. Real code, not yet
-                             installed in any app.
-  capacitor-template/      — copyable Capacitor + Xcode project skeleton and
-                             the script that scaffolds a new app's ios/ folder
+docs/
+  architecture.md       — why Capacitor + "remote mode", how a new app plugs in
+  auth-integration.md   — shared login (Accounts JWT) design
+  distribution.md       — free sideload vs TestFlight, and how to switch
+  roadmap.md            — phased build-out, current status
+packages/
+  native-bridge/        — TS package: push registration, Keychain storage,
+                           Face ID gate, deep links. Real code, installed
+                           via `pnpm add @plugplay/native-bridge` once an
+                           app reaches that phase.
+capacitor-template/     — copyable Capacitor + Xcode project skeleton and
+                           the script that scaffolds a consuming app's
+                           ios/ folder
+.github/workflows/
+  build-ios-app.yml     — reusable workflow (workflow_call). Consuming
+                           apps add a thin wrapper workflow that calls
+                           this one instead of reimplementing the steps.
 ```
+
+## How an app plugs in
+
+See `docs/architecture.md` § "How a new app plugs in" for the full
+sequence. Short version: add a thin `.github/workflows/ios-build.yml` in
+the app's own repo that does
+`uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main`,
+install `@plugplay/native-bridge` when ready to wire up native plugins,
+and point login at the shared Accounts service instead of rolling your
+own OAuth flow again.
 
 ## Read these in order
 

@@ -9,6 +9,7 @@ The copyable pieces of a Capacitor "remote mode" project (see
   be run on macOS** with Xcode + CocoaPods installed; see the comment
   block at the top of the script and `../docs/roadmap.md` Phase 1.
 
-Nothing here has been run yet — Dossier does not have an `ios/` folder.
-This is the tooling that will produce one once a Mac-capable session or
-your own machine runs Phase 1.
+Nothing here has been run against a real app yet. This is the tooling
+that produces an `ios/` folder once you run it against a consuming app's
+repo (locally on a Mac, or via `.github/workflows/build-ios-app.yml`,
+which runs the same steps on a GitHub-hosted macOS runner).

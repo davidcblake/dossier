@@ -1,0 +1,107 @@
+name: Build iOS app (reusable)
+
+# Reusable workflow — consuming apps (Dossier, and future ones) call this
+# with `uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main`
+# instead of reimplementing these steps. See docs/architecture.md.
+#
+# Because this repo is private, the calling app's repo needs a
+# `PLUGPLAY_PAT` secret: a fine-grained GitHub PAT with read-only
+# "Contents" access to davidcblake/plug-and-play, so this job can check
+# out capacitor-template/ alongside the app's own code. The default
+# GITHUB_TOKEN is scoped to the caller repo only and cannot read a
+# different private repo.
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: "Display name shown under the home-screen icon"
+        type: string
+        required: true
+      bundle_id:
+        description: "iOS bundle identifier (reverse-DNS)"
+        type: string
+        required: true
+      remote_url:
+        description: "Deployed URL the native shell loads (remote mode)"
+        type: string
+        required: true
+    secrets:
+      PLUGPLAY_PAT:
+        description: "Read-only PAT for checking out this private framework repo"
+        required: true
+      APPSTORE_API_KEY_ID:
+        required: false
+      APPSTORE_API_ISSUER_ID:
+        required: false
+      APPSTORE_API_PRIVATE_KEY:
+        required: false
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout calling app
+        uses: actions/checkout@v4
+
+      - name: Checkout plug-and-play framework
+        uses: actions/checkout@v4
+        with:
+          repository: davidcblake/plug-and-play
+          token: ${{ secrets.PLUGPLAY_PAT }}
+          path: .plugplay-framework
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Capacitor (this run only — not committed to the app's package.json)
+        run: pnpm add -D @capacitor/cli@^6 @capacitor/core@^6 @capacitor/ios@^6
+
+      - name: Generate ios/ project if it doesn't exist yet, then sync
+        run: |
+          set -euo pipefail
+          if [ ! -d ios ]; then
+            npx cap init "${{ inputs.app_name }}" "${{ inputs.bundle_id }}" --web-dir public
+            sed \
+              -e "s#__BUNDLE_ID__#${{ inputs.bundle_id }}#g" \
+              -e "s#__APP_NAME__#${{ inputs.app_name }}#g" \
+              -e "s#__REMOTE_URL__#${{ inputs.remote_url }}#g" \
+              .plugplay-framework/capacitor-template/capacitor.config.ts.template > capacitor.config.ts
+            npx cap add ios
+          fi
+          npx cap sync ios
+
+      - name: Build for iOS Simulator (no signing required)
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            build
+
+      - name: Archive + upload to TestFlight (Track B only)
+        if: ${{ secrets.APPSTORE_API_KEY_ID != '' && secrets.APPSTORE_API_ISSUER_ID != '' && secrets.APPSTORE_API_PRIVATE_KEY != '' }}
+        run: |
+          echo "Track B secrets detected but the archive/export/upload steps are not implemented yet."
+          echo "See docs/distribution.md in davidcblake/plug-and-play — this is a placeholder for when"
+          echo "Apple Developer Program enrollment happens: xcodebuild archive -> -exportArchive -> altool upload."
+          exit 1
+
+      - name: Upload generated ios/ project as a build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-project
+          path: ios/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -57,43 +57,52 @@ tags — see root `CLAUDE.md`). A native shell on top of that buys:
 
 ## Repo layout
 
-Framework code lives alongside Dossier in this repo for now (see
-`roadmap.md` for why, and when it gets split out):
+This is its own repo (`davidcblake/plug-and-play`), separate from any app
+that consumes it — Dossier included. That split was deliberate from the
+start (see `roadmap.md`): a shared framework repo that every app plugs
+into, rather than a copy-paste template duplicated per app.
 
 ```
-dossier/                       (unchanged — the Next.js app, repo root)
-ios-framework/
-  docs/                        architecture, auth, distribution, roadmap
+plug-and-play/                  (this repo)
+  docs/                         architecture, auth, distribution, roadmap
   packages/
-    native-bridge/              TS package: push, secure storage,
-                                 biometric gate, deep links — the plugin
-                                 plumbing every app installs
-    accounts/                  (planned, see auth-integration.md) — the
-                                 shared login service
+    native-bridge/               TS package: push, secure storage,
+                                  biometric gate, deep links — the plugin
+                                  plumbing every app installs
+    accounts/                   (planned, see auth-integration.md) — the
+                                  shared login service
   capacitor-template/
-    capacitor.config.ts.template   remote-mode config, URL is a placeholder
-    scripts/new-app.sh             scaffolds ios/ for a new app (needs a Mac)
+    capacitor.config.ts.template    remote-mode config, URL is a placeholder
+    scripts/new-app.sh              scaffolds ios/ for a consuming app (needs a Mac)
+  .github/workflows/
+    build-ios-app.yml               reusable workflow (workflow_call) —
+                                     consuming apps call this instead of
+                                     reimplementing the build steps
+
+dossier/                        (a separate repo, the first consumer)
+  .github/workflows/ios-build.yml   thin wrapper that calls this repo's
+                                     build-ios-app.yml with its own inputs
 ```
 
-Nothing here is wired into Dossier's `apps/` build yet. Dossier stays a
-plain Next.js app until Phase 2 (roadmap) adds a `pnpm-workspace.yaml` and
-an `ios/` folder to it as the first real consumer.
+Nothing here is wired into Dossier's build yet — Dossier stays a plain
+Next.js app. Its `ios-build.yml` only calls out to this repo's reusable
+workflow; no native-bridge dependency, no `ios/` folder, until Phase 2
+(`roadmap.md`) actually installs the package.
 
-## How a new app plugs in (target end-state)
+## How a new app plugs in
 
-Once Phase 2 is done, bringing up app #2 should look like:
-
-1. `./ios-framework/capacitor-template/scripts/new-app.sh <name> <vercel-url> <bundle-id>`
-   scaffolds `ios/` in that app's repo with Capacitor already pointed at
-   its deployed URL.
-2. `pnpm add @plugplay/native-bridge` (workspace package) wires up push
-   registration, secure storage, and the biometric gate with a few lines
-   of app code — same API Dossier uses.
+1. In the consuming app's repo, add a thin `.github/workflows/ios-build.yml`
+   that does `uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main`
+   with `app_name` / `bundle_id` / `remote_url` inputs — this generates
+   `ios/` (if missing) and builds it for the iOS Simulator, no local Xcode
+   or Apple account required.
+2. `pnpm add @plugplay/native-bridge` (published from `packages/native-bridge`
+   in this repo) wires up push registration, secure storage, and the
+   biometric gate with a few lines of app code — same API Dossier uses.
 3. The app's login page redirects to the shared Accounts service instead
    of running its own Auth.js Google flow (see `auth-integration.md`).
-4. `./scripts/build.sh <name>` produces either a local sideload build or
-   a TestFlight upload, depending on which distribution track is
-   configured (see `distribution.md`).
+4. Once Track B is set up (`distribution.md`), the same reusable workflow's
+   TestFlight step handles archive/export/upload — no per-app CI work.
 
 Everything native (push, biometrics, icon) is app-specific config over a
 shared plugin API; everything account-related is one shared service. The

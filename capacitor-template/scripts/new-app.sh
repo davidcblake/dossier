@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Scaffolds an ios/ Capacitor project for an app, pointed at its deployed
-# URL in "remote mode" (see ../../docs/architecture.md).
+# URL in "remote mode" (see
+# https://github.com/davidcblake/plug-and-play/blob/main/docs/architecture.md).
 #
 # REQUIRES macOS + Xcode + CocoaPods. `npx cap add ios` shells out to
 # CocoaPods and generates an Xcode project; neither exists on Linux, so
@@ -56,8 +57,9 @@ cat <<EOF
 Done. Next steps:
   1. open ios/App/App.xcworkspace
   2. In Xcode: select a signing team (Track A: your personal Apple ID —
-     see ../../docs/distribution.md), then Run on your device.
+     see https://github.com/davidcblake/plug-and-play/blob/main/docs/distribution.md),
+     then Run on your device.
   3. Add @plugplay/native-bridge as a workspace dependency when you're
      ready to wire up push/secure-storage/biometrics
-     (../../packages/native-bridge).
+     (https://github.com/davidcblake/plug-and-play/tree/main/packages/native-bridge).
 EOF

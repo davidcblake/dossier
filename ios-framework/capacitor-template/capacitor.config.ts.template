@@ -1,0 +1,20 @@
+import type { CapacitorConfig } from "@capacitor/cli";
+
+// Copied and filled in by scripts/new-app.sh for each app. Remote mode:
+// the native shell loads the deployed URL directly (see
+// ../../docs/architecture.md) rather than bundling a static export, so
+// server-rendered routes/API routes/cron work unmodified.
+const config: CapacitorConfig = {
+  appId: "__BUNDLE_ID__", // e.g. com.yourname.dossier — reverse-DNS, must be unique per app
+  appName: "__APP_NAME__", // e.g. Dossier — shown under the home-screen icon
+  webDir: "public", // unused in remote mode, but required by the CLI
+  server: {
+    url: "__REMOTE_URL__", // e.g. https://dossier.vercel.app — your deployed app
+    cleartext: false,
+  },
+  ios: {
+    contentInset: "automatic",
+  },
+};
+
+export default config;

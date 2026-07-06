@@ -4,13 +4,16 @@ name: iOS build (Capacitor)
 # this does not run on every push — trigger it from the Actions tab when
 # you actually want to validate/build the iOS shell.
 #
-# This exists because GitHub-hosted macOS runners come with Xcode +
-# CocoaPods preinstalled — the toolchain ios-framework/capacitor-template
-# needs is available here even though it isn't available in a Claude Code
-# cloud/Linux session. The simulator build below needs no signing and no
-# Apple Developer account at all, so it works today. The TestFlight step
-# is a documented stub until Track B (docs/ios-framework/distribution.md)
-# is set up.
+# This is a thin wrapper: the actual build steps live in the shared
+# framework repo (davidcblake/plug-and-play) as a reusable workflow, so
+# every app that plugs into the framework calls the same logic instead of
+# duplicating it. See that repo's docs/architecture.md.
+#
+# Requires a `PLUGPLAY_PAT` secret in this repo: a fine-grained GitHub PAT
+# with read-only "Contents" access to davidcblake/plug-and-play (it's
+# private, so the default GITHUB_TOKEN can't read it). Optionally also
+# APPSTORE_API_KEY_ID / APPSTORE_API_ISSUER_ID / APPSTORE_API_PRIVATE_KEY
+# once Track B (TestFlight) is set up.
 on:
   workflow_dispatch:
     inputs:
@@ -27,67 +30,15 @@ on:
         required: false
         default: "Dossier"
 
-permissions:
-  contents: read
-
 jobs:
   build:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install app dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Capacitor (this run only — not committed to package.json)
-        run: pnpm add -D @capacitor/cli@^6 @capacitor/core@^6 @capacitor/ios@^6
-
-      - name: Generate ios/ project if it doesn't exist yet, then sync
-        run: |
-          set -euo pipefail
-          if [ ! -d ios ]; then
-            npx cap init "${{ inputs.app_name }}" "${{ inputs.bundle_id }}" --web-dir public
-            sed \
-              -e "s#__BUNDLE_ID__#${{ inputs.bundle_id }}#g" \
-              -e "s#__APP_NAME__#${{ inputs.app_name }}#g" \
-              -e "s#__REMOTE_URL__#${{ inputs.remote_url }}#g" \
-              ios-framework/capacitor-template/capacitor.config.ts.template > capacitor.config.ts
-            npx cap add ios
-          fi
-          npx cap sync ios
-
-      - name: Build for iOS Simulator (no signing required)
-        run: |
-          xcodebuild \
-            -workspace ios/App/App.xcworkspace \
-            -scheme App \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
-            build
-
-      - name: Archive + upload to TestFlight (Track B only)
-        if: ${{ secrets.APPSTORE_API_KEY_ID != '' && secrets.APPSTORE_API_ISSUER_ID != '' && secrets.APPSTORE_API_PRIVATE_KEY != '' }}
-        run: |
-          echo "Track B secrets detected but the archive/export/upload steps are not implemented yet."
-          echo "See ios-framework/docs/distribution.md — this is a placeholder for when you enroll"
-          echo "in the Apple Developer Program: xcodebuild archive -> -exportArchive -> altool upload."
-          exit 1
-
-      - name: Upload generated ios/ project as a build artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-project
-          path: ios/
-          if-no-files-found: ignore
-          retention-days: 14
+    uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main
+    with:
+      app_name: ${{ inputs.app_name }}
+      bundle_id: ${{ inputs.bundle_id }}
+      remote_url: ${{ inputs.remote_url }}
+    secrets:
+      PLUGPLAY_PAT: ${{ secrets.PLUGPLAY_PAT }}
+      APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}

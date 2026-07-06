@@ -9,7 +9,9 @@ anything.
 - Build guide & ground rules: [`CLAUDE.md`](./CLAUDE.md)
 - Operator setup: [`docs/google-cloud-setup.md`](./docs/google-cloud-setup.md)
 - iOS app framework (shared plumbing to turn this and future apps into
-  installable iPhone apps): [`ios-framework/README.md`](./ios-framework/README.md)
+  installable iPhone apps): [davidcblake/plug-and-play](https://github.com/davidcblake/plug-and-play)
+  (private repo; this app's `.github/workflows/ios-build.yml` calls its
+  reusable build workflow)
 
 ## Stack
 

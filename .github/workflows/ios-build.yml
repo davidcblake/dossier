@@ -1,0 +1,44 @@
+name: iOS build (Capacitor)
+
+# Manual only: macOS runners bill Actions minutes at a 10x multiplier, so
+# this does not run on every push — trigger it from the Actions tab when
+# you actually want to validate/build the iOS shell.
+#
+# This is a thin wrapper: the actual build steps live in the shared
+# framework repo (davidcblake/plug-and-play) as a reusable workflow, so
+# every app that plugs into the framework calls the same logic instead of
+# duplicating it. See that repo's docs/architecture.md.
+#
+# Requires a `PLUGPLAY_PAT` secret in this repo: a fine-grained GitHub PAT
+# with read-only "Contents" access to davidcblake/plug-and-play (it's
+# private, so the default GITHUB_TOKEN can't read it). Optionally also
+# APPSTORE_API_KEY_ID / APPSTORE_API_ISSUER_ID / APPSTORE_API_PRIVATE_KEY
+# once Track B (TestFlight) is set up.
+on:
+  workflow_dispatch:
+    inputs:
+      remote_url:
+        description: "Deployed URL the native shell loads (remote mode)"
+        required: false
+        default: "https://dossier.vercel.app"
+      bundle_id:
+        description: "iOS bundle identifier (reverse-DNS)"
+        required: false
+        default: "com.dossier.app"
+      app_name:
+        description: "Display name shown under the home-screen icon"
+        required: false
+        default: "Dossier"
+
+jobs:
+  build:
+    uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main
+    with:
+      app_name: ${{ inputs.app_name }}
+      bundle_id: ${{ inputs.bundle_id }}
+      remote_url: ${{ inputs.remote_url }}
+    secrets:
+      PLUGPLAY_PAT: ${{ secrets.PLUGPLAY_PAT }}
+      APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}

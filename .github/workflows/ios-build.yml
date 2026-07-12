@@ -9,9 +9,9 @@ name: iOS build (Capacitor)
 # every app that plugs into the framework calls the same logic instead of
 # duplicating it. See that repo's docs/architecture.md.
 #
-# Requires a `PLUGPLAY_PAT` secret in this repo: a fine-grained GitHub PAT
-# with read-only "Contents" access to davidcblake/plug-and-play (it's
-# private, so the default GITHUB_TOKEN can't read it). Optionally also
+# The framework repo is public, so no PLUGPLAY_PAT secret is required
+# (the one configured in this repo is kept as a harmless fallback in case
+# the framework ever goes private again). Optionally also
 # APPSTORE_API_KEY_ID / APPSTORE_API_ISSUER_ID / APPSTORE_API_PRIVATE_KEY
 # once Track B (TestFlight) is set up.
 on:
@@ -20,11 +20,11 @@ on:
       remote_url:
         description: "Deployed URL the native shell loads (remote mode)"
         required: false
-        default: "https://dossier.vercel.app"
+        default: "https://mydossier.vercel.app"
       bundle_id:
         description: "iOS bundle identifier (reverse-DNS)"
         required: false
-        default: "com.dossier.app"
+        default: "com.wpv.dossier"
       app_name:
         description: "Display name shown under the home-screen icon"
         required: false

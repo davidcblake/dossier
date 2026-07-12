@@ -33,6 +33,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The native-bridge package ships TypeScript source (installed from the
+  // plug-and-play repo), so Next must compile it alongside app code.
+  transpilePackages: ["@plugplay/native-bridge"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

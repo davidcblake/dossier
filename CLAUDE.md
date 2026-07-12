@@ -126,6 +126,39 @@ model Digest {
 1. **Polish:** onboarding wizard, voice sample → drafts, needs_reconnect flow, privacy/terms pages, account deletion
 1. **Beta hardening:** rate limits, Sentry or console-structured logging, seed script, invite flow (allowlist table checked at sign-in)
 
+## iOS app (Plug and Play)
+
+Dossier is also distributed as a native iOS app via the **Plug and Play**
+framework (`davidcblake/plug-and-play`, public repo — see its
+`docs/roadmap.md` for phase status). The native shell is Capacitor in
+*remote mode*: it loads the deployed site, so every Vercel deploy IS the
+app update. Only native changes (plugins, icon, permissions) need a
+rebuild.
+
+- **Bundle id:** `com.wpv.dossier` (registered to the operator's personal
+  Apple team; also the default in `.github/workflows/ios-build.yml`).
+  Production URL default: `https://mydossier.vercel.app`.
+- **Build:** Actions tab → "iOS build (Capacitor)" → Run workflow (thin
+  wrapper calling the framework's reusable `build-ios-app.yml@main`).
+  Free — Dossier is public, keep it that way or builds start billing.
+- **Install (Track A, free signing):** download the `ios-project`
+  artifact into `~/dossier/ios/`, open `ios/App/App.xcworkspace` in
+  Xcode, ▶ onto the plugged-in iPhone. Apps signed this way expire after
+  7 days — reinstall via Xcode ▶. TestFlight (no expiry, over-the-air) is
+  framework Phase 4, blocked on Apple Developer Program enrollment.
+- **`@plugplay/native-bridge`** is installed as a git dependency (pinned
+  to a commit in `pnpm-lock.yaml`; `pnpm update @plugplay/native-bridge`
+  to pull framework changes). It no-ops on web — never write
+  `if (native)` branches in app code; call the bridge unconditionally.
+  `next.config.ts` transpiles it (ships TS source).
+- **Face ID gate:** `NativeGate` in `src/app/layout.tsx` wraps the whole
+  app inside the native shell only (falls back to device passcode). Keep
+  it app-wide — don't move it to individual routes.
+- **Native push (APNs) is intentionally NOT wired up** — requires paid
+  Apple Developer Program. Web push (VAPID) remains the only send path.
+  When enrollment happens, use the bridge's `registerForNativePush` and
+  add an APNs send path next to `src/lib/push.ts`.
+
 ## Testing expectations
 
 - Unit-test reconcile logic (dedupe, auto-resolve, rollover) and the Zod schemas for AI JSON

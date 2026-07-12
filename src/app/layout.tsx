@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { PwaRegister } from "@/components/pwa-register";
 import { InstallHint } from "@/components/install-hint";
+import { NativeGate } from "@/components/native-gate";
 
 const courier = Courier_Prime({
   subsets: ["latin"],
@@ -54,7 +55,7 @@ export default function RootLayout({
       <body
         className={`${courier.variable} ${inter.variable} ${cormorant.variable} antialiased`}
       >
-        {children}
+        <NativeGate>{children}</NativeGate>
         <PwaRegister />
         <InstallHint />
         <Analytics />

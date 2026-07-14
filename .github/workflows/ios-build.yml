@@ -32,7 +32,7 @@ on:
 
 jobs:
   build:
-    uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@main
+    uses: davidcblake/plug-and-play/.github/workflows/build-ios-app.yml@v1
     with:
       app_name: ${{ inputs.app_name }}
       bundle_id: ${{ inputs.bundle_id }}

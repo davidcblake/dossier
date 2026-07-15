@@ -11,6 +11,13 @@ const config: CapacitorConfig = {
   server: {
     url: "https://mydossier.vercel.app",
     cleartext: false,
+    // Keep the Google sign-in round trip inside the webview: the shell
+    // otherwise bounces external domains to Safari, which splits the
+    // OAuth flow across two cookie jars and breaks the PKCE check
+    // (verified on-device 2026-07-14: InvalidCheck pkceCodeVerifier).
+    // Only this domain — everything else (e.g. Gmail links) should keep
+    // opening externally. Remove with the Phase 3 system-browser login.
+    allowNavigation: ["accounts.google.com"],
   },
   ios: {
     contentInset: "automatic",
